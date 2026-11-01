@@ -69,6 +69,11 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const searchParam = searchParams.get('search');
+    if (searchParam && searchParam.trim()) {
+      query.purpose = { $regex: searchParam.trim(), $options: 'i' };
+    }
+
     const transactions = await Transaction.find(query).sort({ date: -1, createdAt: -1 });
 
     const totalIncome = transactions

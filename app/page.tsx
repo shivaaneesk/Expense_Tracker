@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Navbar from '@/components/Navbar';
 import SummaryCards from '@/components/SummaryCards';
 import TransactionForm from '@/components/TransactionForm';
 import FilterBar from '@/components/FilterBar';
 import TransactionList from '@/components/TransactionList';
 import { TransactionItem, SummaryData, FilterType } from '@/types';
-import { RefreshCw, Download } from 'lucide-react';
+import { RefreshCw, Download, Search, X } from 'lucide-react';
 import { generateTransactionPdf } from '@/lib/pdfGenerator';
 
 export default function DashboardPage() {
@@ -18,6 +18,7 @@ export default function DashboardPage() {
     new Date().toISOString().slice(0, 7) // YYYY-MM
   );
   const [currencySymbol, setCurrencySymbol] = useState<string>('₹');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
   const [summary, setSummary] = useState<SummaryData>({
@@ -70,14 +71,38 @@ export default function DashboardPage() {
     fetchTransactions();
   }, [fetchTransactions]);
 
+  const filteredTransactions = useMemo(() => {
+    if (!searchQuery.trim()) return transactions;
+    const query = searchQuery.trim().toLowerCase();
+    return transactions.filter((t) =>
+      t.purpose.toLowerCase().includes(query)
+    );
+  }, [transactions, searchQuery]);
+
+  const filteredSummary = useMemo(() => {
+    if (!searchQuery.trim()) return summary;
+    const income = filteredTransactions
+      .filter((t) => t.type === 'credit')
+      .reduce((acc, t) => acc + t.amount, 0);
+    const expense = filteredTransactions
+      .filter((t) => t.type === 'debit')
+      .reduce((acc, t) => acc + t.amount, 0);
+    return {
+      totalBalance: Math.round((income - expense) * 100) / 100,
+      totalIncome: Math.round(income * 100) / 100,
+      totalExpenses: Math.round(expense * 100) / 100,
+    };
+  }, [transactions, filteredTransactions, searchQuery, summary]);
+
   const handleDownloadPdf = () => {
     generateTransactionPdf({
-      transactions,
-      summary,
+      transactions: filteredTransactions,
+      summary: searchQuery.trim() ? filteredSummary : summary,
       filter,
       selectedMonth,
       startDate,
       endDate,
+      searchQuery: searchQuery.trim() || undefined,
     });
   };
 
@@ -136,6 +161,7 @@ export default function DashboardPage() {
           selectedMonth={selectedMonth}
           onMonthChange={setSelectedMonth}
           totalCount={transactions.length}
+          filteredCount={searchQuery.trim() ? filteredTransactions.length : undefined}
         />
 
         {/* Global Error Banner */}
@@ -147,26 +173,59 @@ export default function DashboardPage() {
 
         {/* Transactions List */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between px-1">
-            <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-zinc-500">
-              Transaction History
-            </h2>
-            <button
-              onClick={handleDownloadPdf}
-              disabled={loading || transactions.length === 0}
-              title={transactions.length === 0 ? 'No transactions to export' : 'Download history as PDF'}
-              className="inline-flex items-center gap-2 rounded-xl border border-zinc-200/90 bg-white px-4 py-2 text-xs sm:text-sm font-bold text-zinc-800 shadow-sm transition-all hover:border-zinc-300 hover:bg-zinc-50 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <Download className="h-4 w-4 text-zinc-600" />
-              Download PDF
-            </button>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-1">
+            <div className="flex items-center gap-2.5">
+              <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-zinc-500">
+                Transaction History
+              </h2>
+              {searchQuery.trim() && (
+                <span className="rounded-full bg-zinc-200/80 px-2 py-0.5 text-xs font-semibold text-zinc-700">
+                  {filteredTransactions.length} of {transactions.length}
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2.5 w-full sm:w-auto">
+              {/* Search by purpose input */}
+              <div className="relative flex-1 sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by purpose..."
+                  className="w-full rounded-xl border border-zinc-200/90 bg-white py-2 pl-9 pr-8 text-xs sm:text-sm text-zinc-900 placeholder:text-zinc-400 shadow-sm transition-all focus:border-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-800"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    title="Clear search"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-0.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-colors"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <button
+                onClick={handleDownloadPdf}
+                disabled={loading || filteredTransactions.length === 0}
+                title={filteredTransactions.length === 0 ? 'No transactions to export' : 'Download history as PDF'}
+                className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-zinc-200/90 bg-white px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-bold text-zinc-800 shadow-sm transition-all hover:border-zinc-300 hover:bg-zinc-50 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                <Download className="h-4 w-4 text-zinc-600" />
+                <span>Download PDF</span>
+              </button>
+            </div>
           </div>
 
           <TransactionList
-            transactions={transactions}
+            transactions={filteredTransactions}
             currencySymbol={currencySymbol}
             loading={loading}
             onTransactionDeleted={fetchTransactions}
+            searchQuery={searchQuery}
+            onClearSearch={() => setSearchQuery('')}
           />
         </div>
       </main>

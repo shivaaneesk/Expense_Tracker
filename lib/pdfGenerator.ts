@@ -10,6 +10,7 @@ interface GeneratePdfProps {
   selectedMonth?: string;
   startDate?: string;
   endDate?: string;
+  searchQuery?: string;
 }
 
 export function generateTransactionPdf({
@@ -19,6 +20,7 @@ export function generateTransactionPdf({
   selectedMonth,
   startDate,
   endDate,
+  searchQuery,
 }: GeneratePdfProps) {
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -50,6 +52,10 @@ export function generateTransactionPdf({
   if (filter === 'weekly') filterText = 'Period: Current Week';
   else if (filter === 'monthly') filterText = `Period: ${selectedMonth || 'Current Month'}`;
   else if (filter === 'custom') filterText = `Period: ${startDate || 'Start'} to ${endDate || 'End'}`;
+
+  if (searchQuery) {
+    filterText += ` • Search: "${searchQuery}"`;
+  }
 
   doc.text(filterText, pageWidth - 14, 20, { align: 'right' });
 

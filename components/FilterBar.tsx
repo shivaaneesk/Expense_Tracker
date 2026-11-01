@@ -14,6 +14,7 @@ interface FilterBarProps {
   selectedMonth: string;
   onMonthChange: (val: string) => void;
   totalCount: number;
+  filteredCount?: number;
 }
 
 export default function FilterBar({
@@ -26,6 +27,7 @@ export default function FilterBar({
   selectedMonth,
   onMonthChange,
   totalCount,
+  filteredCount,
 }: FilterBarProps) {
   const filterOptions: { id: FilterType; label: string }[] = [
     { id: 'weekly', label: 'Weekly (Current Week)' },
@@ -62,7 +64,17 @@ export default function FilterBar({
 
         {/* Right: Record count indicator */}
         <div className="text-xs sm:text-sm font-medium text-zinc-500">
-          Showing <span className="text-zinc-900 font-bold">{totalCount}</span> {totalCount === 1 ? 'record' : 'records'}
+          {filteredCount !== undefined && filteredCount !== totalCount ? (
+            <>
+              Showing <span className="text-zinc-900 font-bold">{filteredCount}</span> of{' '}
+              <span className="text-zinc-900 font-bold">{totalCount}</span> {totalCount === 1 ? 'record' : 'records'}
+            </>
+          ) : (
+            <>
+              Showing <span className="text-zinc-900 font-bold">{totalCount}</span>{' '}
+              {totalCount === 1 ? 'record' : 'records'}
+            </>
+          )}
         </div>
       </div>
 

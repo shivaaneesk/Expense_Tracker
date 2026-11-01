@@ -10,6 +10,7 @@ import {
   Inbox,
   Loader2,
   AlertCircle,
+  Search,
 } from 'lucide-react';
 
 interface TransactionListProps {
@@ -17,6 +18,33 @@ interface TransactionListProps {
   currencySymbol?: string;
   loading?: boolean;
   onTransactionDeleted: () => void;
+  searchQuery?: string;
+  onClearSearch?: () => void;
+}
+
+function highlightMatch(text: string, query?: string) {
+  if (!query || !query.trim()) return text;
+  const trimmed = query.trim();
+  const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`(${escaped})`, 'gi');
+  const parts = text.split(regex);
+
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.toLowerCase() === trimmed.toLowerCase() ? (
+          <mark
+            key={i}
+            className="rounded bg-amber-200/80 px-1 py-0.5 font-bold text-amber-950"
+          >
+            {part}
+          </mark>
+        ) : (
+          part
+        )
+      )}
+    </>
+  );
 }
 
 export default function TransactionList({
@@ -24,6 +52,8 @@ export default function TransactionList({
   currencySymbol = '₹',
   loading = false,
   onTransactionDeleted,
+  searchQuery = '',
+  onClearSearch,
 }: TransactionListProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -70,6 +100,30 @@ export default function TransactionList({
   }
 
   if (transactions.length === 0) {
+    if (searchQuery.trim()) {
+      return (
+        <div className="rounded-2xl border border-dashed border-zinc-200 bg-white/70 p-12 text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-400">
+            <Search className="h-7 w-7" />
+          </div>
+          <h3 className="mt-3 text-base font-bold text-zinc-900">
+            No transactions matching &quot;{searchQuery}&quot;
+          </h3>
+          <p className="mt-1 text-sm text-zinc-500 max-w-sm mx-auto">
+            No transaction purpose matches your search filter in this period. Try searching for a different word or clear the filter.
+          </p>
+          {onClearSearch && (
+            <button
+              onClick={onClearSearch}
+              className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-zinc-200/90 bg-white px-4 py-2 text-xs sm:text-sm font-semibold text-zinc-700 shadow-sm transition-all hover:bg-zinc-50 active:scale-95"
+            >
+              Clear search filter
+            </button>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div className="rounded-2xl border border-dashed border-zinc-200 bg-white/50 p-12 text-center">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-400">
@@ -144,7 +198,7 @@ export default function TransactionList({
 
                   {/* Purpose */}
                   <td className="px-6 py-4 text-sm sm:text-base font-semibold text-zinc-900 max-w-md truncate">
-                    {t.purpose}
+                    {highlightMatch(t.purpose, searchQuery)}
                   </td>
 
                   {/* Amount */}
@@ -212,7 +266,7 @@ export default function TransactionList({
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-zinc-900">
-                    {t.purpose}
+                    {highlightMatch(t.purpose, searchQuery)}
                   </p>
                   <p className="text-xs text-zinc-500 tabular-nums">
                     {formattedDate} • {isCredit ? 'Credit' : 'Debit'}
